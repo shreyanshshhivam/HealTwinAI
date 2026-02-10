@@ -46,6 +46,7 @@ def load_model():
 
 
 model, feature_names = load_model()
+risk_prob = None
 
 
 def get_twin_svg(risk_score, aqi_level):
@@ -61,7 +62,7 @@ def get_twin_svg(risk_score, aqi_level):
         "L40,80 L40,30 L30,30 Z"
     )
 
-    svg = f"""
+    return f"""
     <svg width="250" height="400" viewBox="0 0 100 200">
         <circle cx="50" cy="50" r="45"
             fill="{ '#555' if aqi_level > 200 else '#e0f7fa' }"
@@ -82,7 +83,6 @@ def get_twin_svg(risk_score, aqi_level):
         </text>
     </svg>
     """
-    return svg
 
 
 with st.sidebar:
@@ -99,7 +99,6 @@ with st.sidebar:
         cp = st.selectbox("Chest Pain Type", [0, 1, 2, 3], index=0)
 
         user_input = [age, 1, cp, bp, chol, 0, 1, 150, 0, 1.0, 1, 0, 3]
-
         risk_prob = model.predict_proba([user_input])[0][1]
 
         st.markdown("Your Digital Body")
@@ -132,11 +131,12 @@ if prompt := st.chat_input("Ask about your health status..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
-    if model is not None:
+    if model is None or risk_prob is None:
+        response = "Health analysis is unavailable because the model is not loaded."
+    else:
         if hasattr(model, "feature_importances_"):
             importances = model.feature_importances_
-            top_feature_index = np.argmax(importances)
-            primary_driver = feature_names[top_feature_index]
+            primary_driver = feature_names[np.argmax(importances)]
         else:
             primary_driver = "multiple contributing factors"
 
@@ -157,8 +157,5 @@ if prompt := st.chat_input("Ask about your health status..."):
                 f"Maintain healthy {primary_driver} levels."
             )
 
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        st.chat_message("assistant").write(response)
-
-    else:
-        st.error("Health analysis unavailable because the model is not loaded.")
+    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.chat_message("assistant").write(response)
